@@ -1,3 +1,4 @@
+#include "sodium/randombytes.h"
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -26,23 +27,41 @@ template <int N, int L> class Sender {
 };
 
 template <int N, int L> class Receiver {
-  HeapArr<Scalar, N> a;
   HeapBits<N> o;
+  HeapArr<Scalar, N> a;
 
   // should be optional
   Point u;
   optional<HeapArr<bitset<L>[2], N>> v;
 
-  Receiver(HeapBits<N> o) : o(o), a(std::make_unique<array<Scalar, N>>()) {
+public:
+  Receiver(HeapBits<N> o) : a(std::make_unique<array<Scalar, N>>()) {
+    o = std::move(o);
     for (int i = 0; i < N; i++) {
-      crypto_core_ristretto255_scalar_random(a[i]);
+      crypto_core_ristretto255_scalar_random((*a)[i]);
     }
-
+    std::cout << "Bitset: " << *o << std::endl;
     v = std::nullopt;
   }
 };
 
 int dh() {
+  const int N = 1000;
+  const int INT_SIZE = (N + 64 - 1) / 64;
+  std::uint64_t r_bytes[INT_SIZE];
+  randombytes_buf(r_bytes, sizeof r_bytes);
+
+  bitset<N> o;
+  std::uint64_t *bitset_pointer = reinterpret_cast<std::uint64_t *>(&o);
+
+  for (int i = 0; i < INT_SIZE; i++) {
+    bitset_pointer[i] = r_bytes[i];
+  }
+
+  std::unique_ptr<bitset<N>> sigma = std::make_unique<std::bitset<N>>(o);
+
+  Receiver<N, 50> rec(std::move(sigma));
+
   unsigned char x[crypto_core_ristretto255_HASHBYTES];
   randombytes_buf(x, sizeof x);
 
