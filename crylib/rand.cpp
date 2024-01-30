@@ -1,4 +1,3 @@
-#include "rand.h"
 #include "sodium/randombytes.h"
 #include <bitset>
 #include <cstdint>
@@ -6,7 +5,8 @@
 
 using std::bitset;
 
-std::bitset<N> rand_bitset() {
+template <int N> std::bitset<N> rand_bitset() {
+  const int INT_SIZE = (N + 64 - 1) / 64;
   std::uint64_t r_bytes[INT_SIZE];
   randombytes_buf(r_bytes, sizeof r_bytes);
 

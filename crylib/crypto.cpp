@@ -46,14 +46,22 @@ public:
 };
 
 int dh() {
+  const int N = 1000;
+  const int L = 128;
+
   // generate Receiver
-  std::bitset<N> o = rand_bitset();
-
-  std::unique_ptr<bitset<N>> sigma = std::make_unique<std::bitset<N>>(o);
-
+  bitset<N> o = rand_bitset<N>();
+  std::unique_ptr<bitset<N>> sigma = std::make_unique<bitset<N>>(o);
   Receiver<N, 50> rec(std::move(sigma));
 
   // generate Sender
+  array<bitset<L>[2], N> msgs;
+
+  for (int i = 0; i < N; i++) {
+    bitset<L> strings[2];
+    strings[0] = rand_bitset<L>();
+    strings[1] = rand_bitset<L>();
+  }
 
   unsigned char x[crypto_core_ristretto255_HASHBYTES];
   randombytes_buf(x, sizeof x);
