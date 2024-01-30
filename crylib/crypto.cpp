@@ -1,9 +1,9 @@
+#include "rand.h"
 #include "sodium/randombytes.h"
 #include <algorithm>
 #include <array>
 #include <bitset>
 #include <cassert>
-#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -46,21 +46,14 @@ public:
 };
 
 int dh() {
-  const int N = 1000;
-  const int INT_SIZE = (N + 64 - 1) / 64;
-  std::uint64_t r_bytes[INT_SIZE];
-  randombytes_buf(r_bytes, sizeof r_bytes);
-
-  bitset<N> o;
-  std::uint64_t *bitset_pointer = reinterpret_cast<std::uint64_t *>(&o);
-
-  for (int i = 0; i < INT_SIZE; i++) {
-    bitset_pointer[i] = r_bytes[i];
-  }
+  // generate Receiver
+  std::bitset<N> o = rand_bitset();
 
   std::unique_ptr<bitset<N>> sigma = std::make_unique<std::bitset<N>>(o);
 
   Receiver<N, 50> rec(std::move(sigma));
+
+  // generate Sender
 
   unsigned char x[crypto_core_ristretto255_HASHBYTES];
   randombytes_buf(x, sizeof x);
