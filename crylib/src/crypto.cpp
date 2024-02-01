@@ -47,22 +47,33 @@ public:
 };
 
 int dh() {
-  const int N = 1000;
-  const int L = 128;
+  const int N = 32;
+  const int L = 16;
 
   // generate Receiver
-  bitset<N> o = rand_bitset<N>();
-  std::unique_ptr<bitset<N>> sigma = std::make_unique<bitset<N>>(o);
+  std::allocator<bitset<N>> allocator;
+  std::unique_ptr<bitset<N>> o(allocator.allocate(1));
+  rand_bitset<N>(o.get());
 
-  Receiver<N, 50> rec(std::move(sigma));
+  Receiver<N, 50> rec(std::move(o));
 
   // generate Sender
-  array<bitset<L>[2], N> msgs;
+  HeapArr<bitset<L>[2], N> msgs = std::make_unique<array<bitset<L>[2], N>>();
+  // for (int i = 0; i < N; i++) {
+  //   std::cout << "msgs: " << (*msgs)[i][0] << std::endl;
+  //   std::cout << "msgs: " << (*msgs)[i][1] << std::endl;
+  // }
+
+  for (int i = 0; i < N; i++) {
+    rand_bitset<L>(&(*msgs)[i][0]);
+    rand_bitset<L>(&(*msgs)[i][1]);
+    // (*msgs)[i][0] = rand_bitset<L>();
+    // (*msgs)[i][1] = rand_bitset<L>();
+  }
 
   // for (int i = 0; i < N; i++) {
-  //   bitset<L> strings[2];
-  //   strings[0] = rand_bitset<L>();
-  //   strings[1] = rand_bitset<L>();
+  //   std::cout << "after: " << (*msgs)[i][0] << std::endl;
+  //   std::cout << "after: " << (*msgs)[i][1] << std::endl;
   // }
 
   unsigned char x[crypto_core_ristretto255_HASHBYTES];
