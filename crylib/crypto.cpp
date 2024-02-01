@@ -1,3 +1,4 @@
+#include "crypto.h"
 #include "rand.h"
 #include "sodium/randombytes.h"
 #include <algorithm>
@@ -35,12 +36,12 @@ template <int N, int L> class Receiver {
   optional<HeapArr<bitset<L>[2], N>> v;
 
 public:
-  Receiver(HeapBits<N> o) : a(std::make_unique<array<Scalar, N>>()) {
-    o = std::move(o);
+  Receiver(HeapBits<N> o)
+      : o(std::move(o)), a(std::make_unique<array<Scalar, N>>()) {
     for (int i = 0; i < N; i++) {
       crypto_core_ristretto255_scalar_random((*a)[i]);
     }
-    std::cout << "Bitset: " << *o << std::endl;
+    std::cout << "Bitset: " << *(this->o) << std::endl;
     v = std::nullopt;
   }
 };
@@ -52,16 +53,17 @@ int dh() {
   // generate Receiver
   bitset<N> o = rand_bitset<N>();
   std::unique_ptr<bitset<N>> sigma = std::make_unique<bitset<N>>(o);
+
   Receiver<N, 50> rec(std::move(sigma));
 
   // generate Sender
   array<bitset<L>[2], N> msgs;
 
-  for (int i = 0; i < N; i++) {
-    bitset<L> strings[2];
-    strings[0] = rand_bitset<L>();
-    strings[1] = rand_bitset<L>();
-  }
+  // for (int i = 0; i < N; i++) {
+  //   bitset<L> strings[2];
+  //   strings[0] = rand_bitset<L>();
+  //   strings[1] = rand_bitset<L>();
+  // }
 
   unsigned char x[crypto_core_ristretto255_HASHBYTES];
   randombytes_buf(x, sizeof x);
@@ -83,7 +85,7 @@ int dh() {
 
   std::cout << "hello\n";
 
-  assert(std::ranges::equal(gab, gba));
+  // assert(std::ranges::equal(gab, gba));
   for (int i = 0; i < 32; i++) {
     assert(gab[i] == gba[i]);
   }

@@ -8,4 +8,4 @@ add_global_arguments('-UNDEBUG', language : 'cpp')
 
 crylib = shared_library('crylib', sources: ['crylib/crypto.cpp', 'crylib/rand.cpp'], dependencies: libsodium)
 
-executable('runner', 'test/main.cpp', include_directories: 'crylib', dependencies: libsodium, link_with: crylib)
+executable('runner', 'test/main.cpp', include_directories: ['crylib'], dependencies: libsodium, link_with: crylib)
