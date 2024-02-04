@@ -1,6 +1,5 @@
 #include "crypto.h"
-#include "rand.h"
-#include "sodium/randombytes.h"
+#include <sodium.h>
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -8,98 +7,153 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <sodium.h>
+#include "rand.h"
+#include "sodium/crypto_core_ristretto255.h"
+#include "sodium/crypto_scalarmult_ristretto255.h"
+#include "sodium/randombytes.h"
 
 using Point = unsigned char[crypto_core_ristretto255_BYTES];
 using Scalar = unsigned char[crypto_core_ristretto255_SCALARBYTES];
 
-using std::array;
-using std::bitset;
-using std::optional;
+template <typename T, size_t N>
+using Arr = std::array<T, N>;
+template <typename T, size_t N>
+using HeapArr = std::unique_ptr<Arr<T, N>>;
 
-template <typename T, int N> using HeapArr = std::unique_ptr<std::array<T, N>>;
-template <int N> using HeapBits = std::unique_ptr<std::bitset<N>>;
+template <size_t N>
+using Bits = std::bitset<N>;
+template <size_t N>
+using HeapBits = std::unique_ptr<Bits<N>>;
 
-template <int N, int L> class Sender {
-  HeapArr<bitset<L>[2], N> x;
-  optional<HeapArr<Point[2], N>> h;
+// Forward declaration because of template
+template <size_t N, size_t L>
+class Receiver;
 
-  Sender(HeapArr<bitset<L>[2], N> x) : x(x) { h = std::nullopt; }
+template <size_t N, size_t L>
+class Sender {
+    HeapArr<Bits<L>[2], N> x;
+    std::optional<HeapArr<Point[2], N>> h;
+
+   public:
+    Sender(HeapArr<Bits<L>[2], N> x) : x(std::move(x)) { h = std::nullopt; }
+
+   public:
+    void receive_key_material(HeapArr<Point[2], N> h) {
+        this->h = std::move(h);
+    }
+
+   public:
+    void send_ciphertexts(Receiver<N, L>* other) {
+        HeapArr<Point[2], N> h;
+        if (this->h.has_value()) {
+            h = std::move(*this->h);
+        } else {
+            // std::unreachable() will be a thing in cpp23
+            throw std::logic_error("This code is unreachable");
+        }
+
+        Scalar r;
+        Point u;
+
+        crypto_core_ristretto255_scalar_random(r);
+        crypto_scalarmult_ristretto255_base(u, r);
+
+        HeapArr<Bits<L>[2], N> v;
+        for (int i = 0; i < N; i++) {}
+    }
 };
 
-template <int N, int L> class Receiver {
-  HeapBits<N> o;
-  HeapArr<Scalar, N> a;
+template <size_t N, size_t L>
+class Receiver {
+    HeapBits<N> o;
+    HeapArr<Scalar, N> a;
 
-  // should be optional
-  Point u;
-  optional<HeapArr<bitset<L>[2], N>> v;
+    // should be optional
+    Point u;
+    std::optional<HeapArr<Bits<L>[2], N>> v;
 
-public:
-  Receiver(HeapBits<N> o)
-      : o(std::move(o)), a(std::make_unique<array<Scalar, N>>()) {
-    for (int i = 0; i < N; i++) {
-      crypto_core_ristretto255_scalar_random((*a)[i]);
+   public:
+    Receiver(HeapBits<N> o)
+        : o(std::move(o)), a(std::make_unique<Arr<Scalar, N>>()) {
+        for (int i = 0; i < N; i++) {
+            crypto_core_ristretto255_scalar_random((*a)[i]);
+        }
+        std::cout << "Bitset: " << *(this->o) << std::endl;
+        v = std::nullopt;
     }
-    std::cout << "Bitset: " << *(this->o) << std::endl;
-    v = std::nullopt;
-  }
+
+   public:
+    void send_key_material(Sender<N, L>* other) {
+        HeapArr<Point[2], N> h = std::make_unique<Arr<Point[2], N>>();
+        for (int i = 0; i < N; i++) {
+            Point h_i, ga_i;
+            crypto_core_ristretto255_random(h_i);
+            crypto_scalarmult_ristretto255_base(ga_i, (*this->a)[i]);
+
+            if ((*this->o)[i]) {
+                memcpy((*h)[i][0], h_i, sizeof h_i);
+                memcpy((*h)[i][1], ga_i, sizeof ga_i);
+            } else {
+                memcpy((*h)[i][0], ga_i, sizeof ga_i);
+                memcpy((*h)[i][1], h_i, sizeof h_i);
+            }
+        }
+
+        other->receive_key_material(std::move(h));
+    }
 };
 
 int dh() {
-  const int N = 32;
-  const int L = 16;
+    const int N = 36;
+    const int L = 16;
 
-  // generate Receiver
-  std::allocator<bitset<N>> allocator;
-  std::unique_ptr<bitset<N>> o(allocator.allocate(1));
-  rand_bitset<N>(o.get());
+    // generate Receiver
+    // std::allocator<std::bitset<N>> allocator;
+    // std::unique_ptr<std::bitset<N>> o(allocator.allocate(1));
+    HeapBits<N> o = std::make_unique<Bits<N>>();
+    rand_bitset<N>(o.get());
 
-  Receiver<N, 50> rec(std::move(o));
+    Receiver<N, L>* rec = new Receiver<N, L>(std::move(o));
 
-  // generate Sender
-  HeapArr<bitset<L>[2], N> msgs = std::make_unique<array<bitset<L>[2], N>>();
-  // for (int i = 0; i < N; i++) {
-  //   std::cout << "msgs: " << (*msgs)[i][0] << std::endl;
-  //   std::cout << "msgs: " << (*msgs)[i][1] << std::endl;
-  // }
+    // generate Sender
+    HeapArr<Bits<L>[2], N> msgs = std::make_unique<Arr<Bits<L>[2], N>>();
+    for (int i = 0; i < N; i++) {
+        rand_bitset<L>(&(*msgs)[i][0]);
+        rand_bitset<L>(&(*msgs)[i][1]);
+    }
 
-  for (int i = 0; i < N; i++) {
-    rand_bitset<L>(&(*msgs)[i][0]);
-    rand_bitset<L>(&(*msgs)[i][1]);
-    // (*msgs)[i][0] = rand_bitset<L>();
-    // (*msgs)[i][1] = rand_bitset<L>();
-  }
+    Sender<N, L>* sen = new Sender<N, L>(std::move(msgs));
 
-  // for (int i = 0; i < N; i++) {
-  //   std::cout << "after: " << (*msgs)[i][0] << std::endl;
-  //   std::cout << "after: " << (*msgs)[i][1] << std::endl;
-  // }
+    rec->send_key_material(sen);
+    sen->send_ciphertexts(rec);
 
-  unsigned char x[crypto_core_ristretto255_HASHBYTES];
-  randombytes_buf(x, sizeof x);
+    delete rec;
+    delete sen;
 
-  unsigned char px[crypto_core_ristretto255_BYTES];
-  crypto_core_ristretto255_from_hash(px, x);
+    unsigned char x[crypto_core_ristretto255_HASHBYTES];
+    randombytes_buf(x, sizeof x);
 
-  Scalar a, b;
-  Point ga, gb, gab, gba;
+    unsigned char px[crypto_core_ristretto255_BYTES];
+    crypto_core_ristretto255_from_hash(px, x);
 
-  crypto_core_ristretto255_scalar_random(a);
-  crypto_core_ristretto255_scalar_random(b);
+    Scalar a, b;
+    Point ga, gb, gab, gba;
 
-  crypto_scalarmult_ristretto255_base(ga, a);
-  crypto_scalarmult_ristretto255_base(gb, b);
+    crypto_core_ristretto255_scalar_random(a);
+    crypto_core_ristretto255_scalar_random(b);
 
-  crypto_scalarmult_ristretto255(gab, b, ga);
-  crypto_scalarmult_ristretto255(gba, a, gb);
+    crypto_scalarmult_ristretto255_base(ga, a);
+    crypto_scalarmult_ristretto255_base(gb, b);
 
-  std::cout << "hello\n";
+    crypto_scalarmult_ristretto255(gab, b, ga);
+    crypto_scalarmult_ristretto255(gba, a, gb);
 
-  // assert(std::ranges::equal(gab, gba));
-  for (int i = 0; i < 32; i++) {
-    assert(gab[i] == gba[i]);
-  }
+    std::cout << "hello\n";
 
-  return 0;
+    // assert(std::ranges::equal(gab, gba));
+    for (int i = 0; i < 32; i++) {
+        assert(gab[i] == gba[i]);
+    }
+
+    return 0;
 }

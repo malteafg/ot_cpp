@@ -4,10 +4,11 @@
 #include "sodium/randombytes.h"
 #include <bitset>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <sodium.h>
 
-// template <int N> std::bitset<N> rand_bitset() {
+// template <size_t N> std::bitset<N> rand_bitset() {
 //   const int INT_SIZE = (N + 64 - 1) / 64;
 //   std::uint64_t r_bytes[INT_SIZE];
 //   randombytes_buf(r_bytes, sizeof r_bytes);
@@ -22,19 +23,27 @@
 //   return o;
 // }
 
-template <int N> void rand_bitset(std::bitset<N> *bitset_ptr) {
-  const int INT_SIZE = (N + 64 - 1) / 64;
-  std::uint64_t r_bytes[INT_SIZE];
-  randombytes_buf(r_bytes, sizeof r_bytes);
+// template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
+//   const int INT_SIZE = (N + 64 - 1) / 64;
+//   std::uint64_t r_bytes[INT_SIZE];
+//   randombytes_buf(r_bytes, sizeof r_bytes);
 
-  std::uint64_t *bitset_pointer = reinterpret_cast<std::uint64_t *>(bitset_ptr);
+//   std::uint64_t *bitset_pointer = reinterpret_cast<std::uint64_t
+//   *>(bitset_ptr);
 
-  for (int i = 0; i < INT_SIZE; i++) {
-    bitset_pointer[i] = r_bytes[i];
-  }
+//   for (int i = 0; i < INT_SIZE; i++) {
+//     bitset_pointer[i] = r_bytes[i];
+//   }
+// }
+
+template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
+  // maybe do it in chunks if stack overflow becomes a problem
+  unsigned char randomBytes[N / 8 + 1];
+  randombytes_buf(randomBytes, sizeof(randomBytes));
+  memcpy(bitset_ptr, randomBytes, sizeof(randomBytes));
 }
 
-// template <int N> void rand_bitset(std::bitset<N> *bitset_ptr) {
+// template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
 //   const int INT_SIZE = (N + 64 - 1) / 64;
 //   std::cout << "hello1\n";
 //   std::uint64_t *raw_ptr = reinterpret_cast<std::uint64_t *>(bitset_ptr);
