@@ -104,7 +104,6 @@ class Receiver {
         for (int i = 0; i < N; i++) {
             crypto_core_ristretto255_scalar_random((*a)[i]);
         }
-        std::cout << "Bitset: " << *(this->o) << std::endl;
         v = std::nullopt;
     }
 
@@ -159,16 +158,15 @@ class Receiver {
 };
 
 int dh() {
-    const int N = 1;
-    const int L = 16;
+    const int N = 100000;
+    const int L = 160;
 
     // generate Receiver
     // std::allocator<std::bitset<N>> allocator;
     // std::unique_ptr<std::bitset<N>> o(allocator.allocate(1));
     HeapBits<N> o = std::make_unique<Bits<N>>();
-    HeapBits<N> o_test = std::make_unique<Bits<N>>(*o);
-    assert(*o == *o_test);
     rand_bitset<N>(o.get());
+    HeapBits<N> o_test = std::make_unique<Bits<N>>(*o);
 
     Receiver<N, L>* rec = new Receiver<N, L>(std::move(o));
 
@@ -181,15 +179,6 @@ int dh() {
 
     HeapArr<Bits<L>[2], N> msgs_test =
         std::make_unique<Arr<Bits<L>[2], N>>(*msgs);
-    for (int i = 0; i < N; i++) {
-        memcpy((*msgs_test)[i], (*msgs)[i], sizeof(Bits<L>[2]));
-        // std::cout << (*msgs_test)[i][0] << std::endl;
-        // std::cout << (*msgs)[i][0] << std::endl;
-        // std::cout << (*msgs_test)[i][1] << std::endl;
-        // std::cout << (*msgs)[i][1] << std::endl;
-        assert((*msgs_test)[i][0] == (*msgs)[i][0]);
-        assert((*msgs_test)[i][1] == (*msgs)[i][1]);
-    }
 
     Sender<N, L>* sen = new Sender<N, L>(std::move(msgs));
 
@@ -198,12 +187,11 @@ int dh() {
     HeapArr<Bits<L>, N> result = rec->compute();
 
     for (int i = 0; i < N; i++) {
-        std::cout << "Result: " << (*result)[i] << std::endl;
-        std::cout << "Msgs[0] " << (*msgs_test)[i][0] << std::endl;
-        std::cout << "Msgs[1] " << (*msgs_test)[i][1] << std::endl;
-        std::cout << "Msgs[i] " << (*msgs_test)[i][(*o_test)[i]] << std::endl;
-        std::cout << "o[i]    " << (*o_test)[i] << std::endl;
-        assert((*result)[i] == (*msgs_test)[i][(*o_test)[i]]);
+        Bits<L> res = (*result)[i];
+        Bits<L> test = (*msgs_test)[i][(*o_test)[i]];
+        for (int i = 0; i < L; i++) {
+            assert(res[i] == test[i]);
+        }
     }
 
     delete rec;
