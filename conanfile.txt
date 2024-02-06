@@ -1,7 +1,7 @@
 [requires]
 zlib/1.3
 rapidcheck/cci.20230815
-libsodium/1.0.18
+libsodium/1.0.19
 
 [generators]
 PkgConfigDeps

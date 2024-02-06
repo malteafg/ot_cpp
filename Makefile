@@ -11,9 +11,9 @@ configure:
 	meson setup --native-file $(BUILD_DIR)/conan_meson_native.ini . $(MESON_DIR)
 
 compile:
-	meson compile -C $(MESON_DIR)
 	cp $(MESON_DIR)/$(COMP_FILE) .
 	sed -i 's/g++/clangd/g' $(COMP_FILE)
+	meson compile -C $(MESON_DIR)
 
 run:
 	./$(MESON_DIR)/runner
