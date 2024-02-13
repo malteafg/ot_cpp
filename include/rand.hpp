@@ -1,12 +1,11 @@
-#ifndef RAND_H
-#define RAND_H
+#pragma once
+
+#include <sodium.h>
+
+#include <bitset>
+#include <cstring>
 
 #include "sodium/randombytes.h"
-#include <bitset>
-#include <cstdint>
-#include <cstring>
-#include <iostream>
-#include <sodium.h>
 
 // template <size_t N> std::bitset<N> rand_bitset() {
 //   const int INT_SIZE = (N + 64 - 1) / 64;
@@ -36,11 +35,12 @@
 //   }
 // }
 
-template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
-  // maybe do it in chunks if stack overflow becomes a problem
-  unsigned char randomBytes[N / 8 + 1];
-  randombytes_buf(randomBytes, sizeof(randomBytes));
-  memcpy(bitset_ptr, randomBytes, sizeof(randomBytes));
+template<size_t N>
+void rand_bitset(std::bitset<N>* bitset_ptr) {
+    // maybe do it in chunks if stack overflow becomes a problem
+    unsigned char randomBytes[N / 8 + 1];
+    randombytes_buf(randomBytes, sizeof(randomBytes));
+    memcpy(bitset_ptr, randomBytes, sizeof(randomBytes));
 }
 
 // template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
@@ -51,5 +51,3 @@ template <size_t N> void rand_bitset(std::bitset<N> *bitset_ptr) {
 //   randombytes_buf(raw_ptr, INT_SIZE / 8);
 //   std::cout << "hello3\n";
 // }
-
-#endif
